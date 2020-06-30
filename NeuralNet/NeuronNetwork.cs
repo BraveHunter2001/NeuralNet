@@ -20,23 +20,16 @@ namespace NeuralNet
             CreateOutputLayer();
         }
 
-        public Neuron FeedForward(params double[] inputSignals)
+        public Layer FeedForward(params double[] inputSignals)
         {
             SendSignalsToInputNeurons(inputSignals);
             FeedForwardAllLayersAfterInput();
 
-            if (Topology.OutputCount == 1)
-            {
-                return Layers.Last().Neurons[0];
-            }
-            else
-            {
-                return Layers.Last().Neurons.OrderByDescending(n => n.Output).First();
-            }
+            return Layers.Last();
 
         }
 
-        public double Learn(List<Tuple<double, double[]>> dataset, int epoch)
+        public double Learn(List<Tuple<double[], double[]>> dataset, int epoch)
         {
             var error = 0.0;
 
@@ -53,15 +46,18 @@ namespace NeuralNet
         }
 
         //Note: expected один , а должно равно кол-ву выходныйх нейронов
-        private double Backpropagation(double expected, params double[] inputs)
+        private double Backpropagation(double[] expected, params double[] inputs)
         {
-            var actual = FeedForward(inputs).Output;
-
-            var diffference = actual - expected;
+            double[] actual = new double[Layers.Last().NeuronCount];
+            double[] difference  = new double[Layers.Last().NeuronCount];
 
             foreach(var neuron in Layers.Last().Neurons)
             {
-                neuron.Learn(diffference, Topology.LearningRate);
+                int k = 0;
+                actual[k] = FeedForward(inputs).Neurons[k].Output;
+                difference[k] = actual[k] - expected[k]; 
+                neuron.Learn(difference[k], Topology.LearningRate);
+                k++;
             }
 
             for (int j = Layers.Count - 2; j >= 0; j--)
@@ -80,7 +76,13 @@ namespace NeuralNet
                     }
                 }
             }
-            var result = diffference * diffference; // надо ли брать еще корень ?
+
+            //TODO: посмотреть как правильно вычислять ошибку
+            double result = 0;
+            for (int i = 0; i < difference.Length; i++)
+                result += difference[i] * difference[i];
+            result /= difference.Length;
+
             return result;
         }
 
